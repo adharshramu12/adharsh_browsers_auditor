@@ -264,9 +264,12 @@ class BrowserExtractorGUI(ctk.CTk):
         self.global_scan_btn.configure(state="normal", text="Global Security Scan")
         self.build_sidebar_profiles()
         
-        if self.data and not self.current_browser:
-            first_browser = list(self.data.keys())[0]
-            self.select_profile(first_browser)
+        if self.data:
+            if not self.current_browser or self.current_browser not in self.data:
+                first_browser = list(self.data.keys())[0]
+                self.select_profile(first_browser)
+            else:
+                self.select_profile(self.current_browser)
 
     def build_sidebar_profiles(self):
         # Clear old
