@@ -506,8 +506,19 @@ def get_all_browsers_data():
         try:
             discovered = discover_profiles(base_path, btype)
             if not discovered:
-                # Fallback check for single-profile cases where path might be different
-                logger.debug(f"No profiles found for {browser_name} in {base_path}, skipping.")
+                # Add placeholder if browser is not installed
+                display_name = f"{browser_name} (Unconfigured)"
+                results[display_name] = {
+                    'name': display_name,
+                    'history': [],
+                    'downloads': [],
+                    'extensions': [],
+                    'cache_size': "0 MB",
+                    'cache_files': 0,
+                    'status': 'Not Installed',
+                    'base_path': '',
+                    'browser_type': btype
+                }
                 continue
                 
             for p_id, p_path in discovered:
