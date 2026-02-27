@@ -124,7 +124,7 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
             cutoff_timestamp = int((cutoff_dt - datetime(1601, 1, 1)).total_seconds() * 1000000)
 
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, timeout=10)
             cursor = conn.cursor()
             
             if not cutoff_dt:
@@ -138,6 +138,15 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
                 cursor.execute("DELETE FROM urls WHERE last_visit_time > ?", (cutoff_timestamp,))
                 
             conn.commit()
+            
+            # CRITICAL FIX: SQLite simply marks rows as deleted. Browsers sometimes still read them 
+            # if we don't physically VACUUM the database to shrink it and force clear the free list.
+            try:
+                cursor.execute("VACUUM")
+                conn.commit()
+            except sqlite3.OperationalError as e:
+                logger.warning(f"Vacuum failed (non-fatal): {e}")
+
             conn.close()
             logger.info(f"Successfully cleared {time_range} Chromium history for {browser_name}")
             return True, f"Successfully cleared {browser_name} history ({time_range})."
@@ -156,7 +165,7 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
             cutoff_timestamp = int(cutoff_dt.timestamp() * 1000000)
 
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, timeout=10)
             cursor = conn.cursor()
             
             if not cutoff_dt:
@@ -168,6 +177,13 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
                 cursor.execute("DELETE FROM moz_historyvisits WHERE visit_date > ?", (cutoff_timestamp,))
             
             conn.commit()
+            
+            try:
+                cursor.execute("VACUUM")
+                conn.commit()
+            except sqlite3.OperationalError as e:
+                logger.warning(f"Vacuum Firefox failed (non-fatal): {e}")
+
             conn.close()
             logger.info(f"Successfully cleared {time_range} Firefox history for {browser_name}")
             return True, f"Successfully cleared {browser_name} history ({time_range})."
@@ -219,13 +235,12 @@ def clear_browser_cache(browser_name, base_path, browser_type='chromium'):
     for cdir in cache_dirs:
         if os.path.exists(cdir):
             try:
-                for root, dirs, files in os.walk(cdir, topdown=False):
-                    for name in files:
-                        try: os.remove(os.path.join(root, name))
-                        except: pass
-                    for name in dirs:
-                        try: shutil.rmtree(os.path.join(root, name))
-                        except: pass
+                # Force delete the entire directory tree instead of just walking it
+                # This guarantees that the index files and all subfolders are wiped.
+                shutil.rmtree(cdir, ignore_errors=True)
+                
+                # Recreate the empty directory so the browser doesn't crash on next launch
+                os.makedirs(cdir, exist_ok=True)
                 cleared_count += 1
             except Exception as e:
                 logger.error(f"Error clearing cache dir {cdir}: {e}")
