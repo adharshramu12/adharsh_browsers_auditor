@@ -69,7 +69,13 @@ def is_browser_running(browser_name):
         "Brave": "brave.exe",
         "Atlas": "atlas.exe"
     }
-    target = process_names.get(browser_name, "").lower()
+
+    target = ""
+    for b_name, exe in process_names.items():
+        if browser_name.startswith(b_name):
+            target = exe
+            break
+
     if not target:
         return False
     
