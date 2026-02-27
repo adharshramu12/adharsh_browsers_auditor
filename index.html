@@ -66,11 +66,14 @@
                     Powered by <b>Adharsh Browser Auditor</b>.</p>
                 <div class="hero-btns fade-in delay-2">
                     <a href="dist/Adharsh_Auditor_Setup.zip" class="btn btn-primary large">
-                        <span>Download Setup (ZIP)</span>
-                        <small>Secure Archive (No Warnings)</small>
+                        <span>Download for Windows</span>
+                        <small>Secure Setup (Zero Warning)</small>
                     </a>
-                    <a href="https://github.com/adharshramu12/adharsh_browsers_auditor"
-                        class="btn btn-secondary large">View on GitHub</a>
+                    <a href="https://github.com/adharshramu12/adharsh_browsers_auditor/archive/refs/heads/main.zip"
+                        class="btn btn-secondary large">
+                        <span>Download for Mac & Linux</span>
+                        <small>Python Source (Cross-Platform)</small>
+                    </a>
                 </div>
             </div>
             <div class="hero-visual fade-in delay-3">
@@ -118,13 +121,19 @@
     <!-- Trust Hub & Installation Guide -->
     <section id="trust-hub" class="guide-section">
         <div class="container">
-            <h2 class="section-title fade-in">Unlocking One-Click Access</h2>
+            <h2 class="section-title fade-in">Installation Guide</h2>
             <p class="fade-in delay-1"
-                style="text-align: center; color: var(--text-dim); max-width: 800px; margin: 0 auto 50px;">
-                Browser security blocks new tools instantly. To completely <b>bypass</b> all warnings, we've packaged
-                your setup inside a secure <b>ZIP Archive</b>. Follow these 3 easy steps for permanent one-click access:
+                style="text-align: center; color: var(--text-dim); max-width: 800px; margin: 0 auto 30px;">
+                Browser security blocks new tools instantly. To completely <b>bypass</b> all warnings, follow the 3 easy
+                steps for your operating system.
             </p>
-            <div class="guide-grid">
+
+            <div class="os-tabs fade-in delay-1">
+                <button class="os-tab active" onclick="switchOS('windows')"><span>🪟 Windows Setup</span></button>
+                <button class="os-tab" onclick="switchOS('mac')"><span>🍏 Mac & 🐧 Linux (Source)</span></button>
+            </div>
+
+            <div id="guide-windows" class="guide-grid">
                 <div class="glass-card guide-item fade-in delay-2">
                     <div class="guide-num">1</div>
                     <h3>Extract the ZIP</h3>
@@ -144,6 +153,31 @@
                         instantly forever!</p>
                 </div>
             </div>
+
+            <div id="guide-mac" class="guide-grid" style="display: none;">
+                <div class="glass-card guide-item fade-in delay-2">
+                    <div class="guide-num">1</div>
+                    <h3>Download & Extract Source</h3>
+                    <p>Click the <b>Download for Mac & Linux</b> button above to get the ZIP file containing the source
+                        code and extract it to your preferred folder.</p>
+                </div>
+                <div class="glass-card guide-item fade-in delay-3">
+                    <div class="guide-num">2</div>
+                    <h3>Install Dependencies</h3>
+                    <p>Open the Terminal application, navigate to the extracted folder, and install the required
+                        packages by running:<br><code
+                            style="background:var(--sidebar); padding:5px 8px; border-radius:5px; margin-top:10px; display:inline-block;">pip3 install -r requirements.txt</code>
+                    </p>
+                </div>
+                <div class="glass-card guide-item fade-in delay-4">
+                    <div class="guide-num">3</div>
+                    <h3>Run the Auditor</h3>
+                    <p>Launch the graphical application by running the main Python file in your terminal:<br><code
+                            style="background:var(--sidebar); padding:5px 8px; border-radius:5px; margin-top:10px; display:inline-block;">python3 gui.py</code>
+                    </p>
+                </div>
+            </div>
+
         </div>
     </section>
 
@@ -164,7 +198,25 @@
     </footer>
 
     <script>
+        // OS Selector Function
+        function switchOS(os) {
+            document.querySelectorAll('.os-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById('guide-windows').style.display = 'none';
+            document.getElementById('guide-mac').style.display = 'none';
+
+            if (os === 'windows') {
+                document.querySelector('.os-tab:nth-child(1)').classList.add('active');
+                document.getElementById('guide-windows').style.display = 'grid';
+            } else {
+                document.querySelector('.os-tab:nth-child(2)').classList.add('active');
+                document.getElementById('guide-mac').style.display = 'grid';
+            }
+        }
+
         // Simple reveal on scroll
+
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
