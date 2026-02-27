@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://adharshramu12.github.io/adharsh_browsers_auditor/sitemap.xml
