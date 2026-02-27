@@ -479,7 +479,11 @@ def discover_profiles(base_user_data_path, browser_type='chromium'):
         for entry in os.listdir(base_user_data_path):
             p_path = os.path.join(base_user_data_path, entry)
             if os.path.isdir(p_path) and os.path.exists(os.path.join(p_path, 'places.sqlite')):
-                profiles.append((entry, p_path))
+                # Clean up the name for the UI by removing the random 8-char prefix
+                clean_name = entry.split('.')[-1] if '.' in entry else entry
+                # Capitalize it nicely (e.g. 'default-release' -> 'Default-Release')
+                clean_name = clean_name.replace('-', ' ').title()
+                profiles.append((clean_name, p_path))
     
     return profiles
 
