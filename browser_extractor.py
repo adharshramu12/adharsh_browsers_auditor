@@ -96,11 +96,14 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
         time_range (str, optional): Range to clear ("Last Hour", "Last 24 Hours", "All Time"). Defaults to "All Time".
 
     Returns:
-        tuple (bool, str): (Success status, Result message).
+        tuple (bool, str, dict): (Success status, Result message, Deletion report).
+        The report dict contains 'urls_deleted', 'visits_deleted', 'downloads_deleted', 'search_terms_deleted'.
     """
+    empty_report = {"urls_deleted": 0, "visits_deleted": 0, "downloads_deleted": 0, "search_terms_deleted": 0}
+
     if is_browser_running(browser_name):
         logger.warning(f"Attempted to clear history for {browser_name} while it was running.")
-        return False, f"Please close {browser_name} before clearing history."
+        return False, f"Please close {browser_name} before clearing history.", empty_report
 
     logger.info(f"Clearing {time_range} history for {browser_name} at {base_path}")
 
@@ -117,30 +120,51 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
         db_path = os.path.join(base_path, 'History')
         if not os.path.exists(db_path):
             logger.error(f"Chromium history not found at {db_path}")
-            return False, "History file not found."
+            return False, "History file not found.", empty_report
         
         cutoff_timestamp = 0
         if cutoff_dt:
             cutoff_timestamp = int((cutoff_dt - datetime(1601, 1, 1)).total_seconds() * 1000000)
 
+        report = dict(empty_report)
         try:
             conn = sqlite3.connect(db_path, timeout=10)
             cursor = conn.cursor()
             
+            # Count rows BEFORE deletion
             if not cutoff_dt:
+                for table, key in [('urls', 'urls_deleted'), ('visits', 'visits_deleted'), 
+                                    ('downloads', 'downloads_deleted'), ('keyword_search_terms', 'search_terms_deleted')]:
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        report[key] = cursor.fetchone()[0]
+                    except sqlite3.OperationalError:
+                        pass
+
                 tables = ['urls', 'visits', 'downloads', 'keyword_search_terms', 'segments', 'visit_source']
                 for table in tables:
                     try: cursor.execute(f"DELETE FROM {table}")
                     except sqlite3.OperationalError: pass
             else:
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM urls WHERE last_visit_time > ?", (cutoff_timestamp,))
+                    report["urls_deleted"] = cursor.fetchone()[0]
+                except: pass
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM visits WHERE visit_time > ?", (cutoff_timestamp,))
+                    report["visits_deleted"] = cursor.fetchone()[0]
+                except: pass
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM downloads WHERE start_time > ?", (cutoff_timestamp,))
+                    report["downloads_deleted"] = cursor.fetchone()[0]
+                except: pass
+
                 cursor.execute("DELETE FROM visits WHERE visit_time > ?", (cutoff_timestamp,))
                 cursor.execute("DELETE FROM downloads WHERE start_time > ?", (cutoff_timestamp,))
                 cursor.execute("DELETE FROM urls WHERE last_visit_time > ?", (cutoff_timestamp,))
                 
             conn.commit()
             
-            # CRITICAL FIX: SQLite simply marks rows as deleted. Browsers sometimes still read them 
-            # if we don't physically VACUUM the database to shrink it and force clear the free list.
             try:
                 cursor.execute("VACUUM")
                 conn.commit()
@@ -149,31 +173,44 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
 
             conn.close()
             logger.info(f"Successfully cleared {time_range} Chromium history for {browser_name}")
-            return True, f"Successfully cleared {browser_name} history ({time_range})."
+            return True, f"Successfully cleared {browser_name} history ({time_range}).", report
         except Exception as e:
             logger.error(f"Error clearing Chromium history for {browser_name}: {e}")
-            return False, f"Error clearing history: {str(e)}"
+            return False, f"Error clearing history: {str(e)}", empty_report
 
     elif browser_type == 'firefox':
         db_path = os.path.join(base_path, 'places.sqlite')
         if not os.path.exists(db_path):
             logger.error(f"Firefox history not found at {db_path}")
-            return False, "History file not found."
+            return False, "History file not found.", empty_report
             
         cutoff_timestamp = 0
         if cutoff_dt:
             cutoff_timestamp = int(cutoff_dt.timestamp() * 1000000)
 
+        report = dict(empty_report)
         try:
             conn = sqlite3.connect(db_path, timeout=10)
             cursor = conn.cursor()
             
             if not cutoff_dt:
+                for table, key in [('moz_places', 'urls_deleted'), ('moz_historyvisits', 'visits_deleted')]:
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        report[key] = cursor.fetchone()[0]
+                    except sqlite3.OperationalError:
+                        pass
+
                 tables = ['moz_places', 'moz_historyvisits', 'moz_inputhistory']
                 for table in tables:
                     try: cursor.execute(f"DELETE FROM {table}")
                     except sqlite3.OperationalError: pass
             else:
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM moz_historyvisits WHERE visit_date > ?", (cutoff_timestamp,))
+                    report["visits_deleted"] = cursor.fetchone()[0]
+                except: pass
+
                 cursor.execute("DELETE FROM moz_historyvisits WHERE visit_date > ?", (cutoff_timestamp,))
             
             conn.commit()
@@ -186,12 +223,12 @@ def clear_browser_history(browser_name, base_path, browser_type='chromium', time
 
             conn.close()
             logger.info(f"Successfully cleared {time_range} Firefox history for {browser_name}")
-            return True, f"Successfully cleared {browser_name} history ({time_range})."
+            return True, f"Successfully cleared {browser_name} history ({time_range}).", report
         except Exception as e:
             logger.error(f"Error clearing Firefox history for {browser_name}: {e}")
-            return False, f"Error clearing history: {str(e)}"
+            return False, f"Error clearing history: {str(e)}", empty_report
             
-    return False, "This app does not store local history in a clearable format."
+    return False, "This app does not store local history in a clearable format.", empty_report
 
 def clear_browser_cache(browser_name, base_path, browser_type='chromium'):
     """Clears cache directories for a specific browser.
